@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyMind — Personal RAG Chatbot</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0b0813;
+            --sidebar-bg: #110e20;
+            --card-bg: rgba(26, 22, 43, 0.6);
+            --border-color: rgba(138, 92, 246, 0.2);
+            --border-hover: rgba(138, 92, 246, 0.5);
+            --accent-color: #8b5cf6;
+            --accent-gradient: linear-gradient(135deg, #a78bfa, #7c3aed);
+            --glow-color: rgba(139, 92, 246, 0.3);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --user-bubble: linear-gradient(135deg, #7c3aed, #4f46e5);
+            --bot-bubble: rgba(30, 27, 57, 0.7);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 320px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 8px var(--glow-color));
+        }
+
+        .logo-text {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 24px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-color);
+            margin-bottom: 16px;
+        }
+
+        /* Upload Area */
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: rgba(25, 20, 45, 0.3);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-color);
+            background-color: rgba(25, 20, 45, 0.5);
+            box-shadow: 0 0 15px var(--glow-color);
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 36px;
+            color: var(--accent-color);
+            margin-bottom: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .upload-zone:hover .upload-icon {
+            transform: translateY(-4px);
+        }
+
+        .upload-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .upload-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Status List */
+        .status-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 4px;
+        }
+
+        .status-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .status-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .status-item {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .status-item.success {
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .status-item.error {
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .status-item-icon {
+            font-size: 18px;
+        }
+        .status-item.success .status-item-icon { color: #10b981; }
+        .status-item.error .status-item-icon { color: #ef4444; }
+        .status-item.loading .status-item-icon { color: var(--accent-color); animation: spin 1s linear infinite; }
+
+        .status-item-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .status-item-name {
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-item-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Config Info */
+        .config-panel {
+            background-color: rgba(20, 16, 35, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            font-size: 12px;
+        }
+
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .config-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .config-label {
+            color: var(--text-muted);
+        }
+
+        .config-val {
+            font-weight: 600;
+            color: #c084fc;
+        }
+
+        /* Main Chat Area */
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: var(--bg-color);
+            position: relative;
+        }
+
+        /* Topbar */
+        .topbar {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: rgba(11, 8, 19, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .topbar-title-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .topbar-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Messages Display */
+        .messages-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .messages-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 6px;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .welcome-icon {
+            font-size: 48px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 12px var(--glow-color));
+        }
+
+        .welcome-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .welcome-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Message Bubbles */
+        .message {
+            display: flex;
+            max-width: 75%;
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message.user .avatar {
+            background: var(--accent-gradient);
+            order: 2;
+            margin-left: 12px;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .message.bot .avatar {
+            background-color: #2e264f;
+            border: 1px solid var(--border-color);
+            margin-right: 12px;
+            color: var(--accent-color);
+        }
+
+        .bubble {
+            border-radius: 16px;
+            padding: 14px 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .message.user .bubble {
+            background: var(--user-bubble);
+            border-bottom-right-radius: 4px;
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
+        }
+
+        .message.bot .bubble {
+            background: var(--bot-bubble);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Markdown like layout inside bubble */
+        .bubble p {
+            margin-bottom: 8px;
+        }
+        .bubble p:last-child {
+            margin-bottom: 0;
+        }
+        .bubble strong {
+            color: #d8b4fe;
+        }
+        .bubble ul {
+            margin-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        /* Sources display inside bot response */
+        .sources-container {
+            margin-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 8px;
+        }
+
+        .sources-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .source-tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .source-tag {
+            font-size: 11px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 3px 8px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Input Section */
+        .input-panel {
+            padding: 24px 32px 32px;
+            background-color: transparent;
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            background-color: rgba(18, 14, 33, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-container:focus-within {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 20px var(--glow-color), 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #chat-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 14px;
+            padding: 12px 8px;
+            resize: none;
+            max-height: 120px;
+            height: 44px;
+        }
+
+        .send-btn {
+            background: var(--accent-gradient);
+            border: none;
+            outline: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.5);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Loading Indicator inside Chat */
+        .typing-loader {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 0;
+        }
+
+        .typing-loader span {
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-loader span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-loader span:nth-child(2) { animation-delay: -0.16s; }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Panel -->
+    <div class="sidebar">
+        <div class="logo-container">
+            <i class="fa-solid fa-brain logo-icon"></i>
+            <span class="logo-text">MyMind</span>
+        </div>
+
+        <div class="section-title">Ingest Dokumen</div>
+        <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+            <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+            <div class="upload-text">Unggah File Anda</div>
+            <div class="upload-subtext">PDF, TXT, MD, EPUB (Maks 15MB)</div>
+            <input type="file" id="file-input" accept=".pdf,.txt,.md,.epub">
+        </div>
+
+        <div class="section-title">Status Ingest</div>
+        <div class="status-list" id="status-list">
+            <!-- Uploaded files status will appear here dynamically -->
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 16px;" id="no-ingest-text">
+                Belum ada dokumen yang diunggah.
+            </div>
+        </div>
+
+        <div class="config-panel">
+            <div class="config-row">
+                <span class="config-label">Model Generator:</span>
+                <span class="config-val">gemini-3.5-flash</span>
+            </div>
+            <div class="config-row">
+                <span class="config-label">Model Embedding:</span>
+                <span class="config-val">gemini-embedding-001</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Panel -->
+    <div class="chat-area">
+        <!-- Top Navigation Bar -->
+        <div class="topbar">
+            <div class="topbar-title-container">
+                <div class="status-dot"></div>
+                <span class="topbar-title">Sesi Obrolan Personal</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted);">
+                Local VectorDB: ChromaDB
+            </div>
+        </div>
+
+        <!-- Messages Display Panel -->
+        <div class="messages-container" id="messages-container">
+            <!-- Welcome screen shown when chat is empty -->
+            <div class="welcome-screen" id="welcome-screen">
+                <i class="fa-solid fa-comments welcome-icon"></i>
+                <h1 class="welcome-title">Bagaimana saya bisa membantu hari ini?</h1>
+                <p class="welcome-desc">
+                    Unggah dokumen pribadi Anda (PDF, TXT, Markdown, EPUB) di panel kiri, kemudian tanyakan apa saja terkait isi dokumen tersebut di sini.
+                </p>
+            </div>
+        </div>
+
+        <!-- Chat Input Panel -->
+        <div class="input-panel">
+            <div class="input-container">
+                <textarea id="chat-input" placeholder="Tanyakan tentang dokumen Anda..." rows="1"></textarea>
+                <button class="send-btn" id="send-btn">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const messagesContainer = document.getElementById('messages-container');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const fileInput = document.getElementById('file-input');
+        const statusList = document.getElementById('status-list');
+        const noIngestText = document.getElementById('no-ingest-text');
+
+        // Conversation history state
+        let conversationHistory = [];
+
+        // Adjust input height automatically
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+
+        // Add user or bot message element to chat
+        function addMessageElement(role, text, sources = null) {
+            // Remove welcome screen if visible
+            if (welcomeScreen) {
+                welcomeScreen.style.display = 'none';
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'avatar';
+            avatarDiv.innerHTML = role === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'bubble';
+            
+            // Format simple newlines and bold texts for response display
+            let formattedText = text
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            bubbleDiv.innerHTML = `<p>${formattedText}</p>`;
+
+            // Add source list if available
+            if (role === 'bot' && sources && sources.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources-container';
+                
+                let sourceTags = '';
+                // Deduplicate sources
+                const uniqueSources = [];
+                const seen = new Set();
+                for (const src of sources) {
+                    if (!seen.has(src.source)) {
+                        seen.add(src.source);
+                        uniqueSources.push(src);
+                    }
+                }
+
+                for (const src of uniqueSources) {
+                    sourceTags += `
+                        <div class="source-tag">
+                            <i class="fa-solid fa-file-lines"></i>
+                            <span>${src.source}</span>
+                            <span style="font-size: 9px; opacity: 0.6;">(dist: ${src.distance.toFixed(3)})</span>
+                        </div>
+                    `;
+                }
+
+                sourcesDiv.innerHTML = `
+                    <div class="sources-title">
+                        <i class="fa-solid fa-circle-info"></i> Referensi Dokumen
+                    </div>
+                    <div class="source-tag-list">
+                        ${sourceTags}
+                    </div>
+                `;
+                bubbleDiv.appendChild(sourcesDiv);
+            }
+
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(bubbleDiv);
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const indicatorDiv = document.createElement('div');
+            indicatorDiv.className = 'message bot';
+            indicatorDiv.id = 'typing-indicator';
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'avatar';
+            avatarDiv.innerHTML = '<i class="fa-solid fa-robot"></i>';
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'bubble';
+            bubbleDiv.innerHTML = `
+                <div class="typing-loader">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+
+            indicatorDiv.appendChild(avatarDiv);
+            indicatorDiv.appendChild(bubbleDiv);
+            messagesContainer.appendChild(indicatorDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Send message API call
+        async function sendMessage() {
+            const query = chatInput.value.trim();
+            if (!query) return;
+
+            // Clear input
+            chatInput.value = '';
+            chatInput.style.height = '44px';
+
+            // Add user message to UI
+            addMessageElement('user', query);
+
+            // Show bot typing loader
+            showTypingIndicator();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        history: conversationHistory
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Gagal menghubungi asisten backend.');
+                }
+
+                const data = await response.json();
+                
+                // Remove typing indicator and add bot response
+                removeTypingIndicator();
+                addMessageElement('bot', data.answer, data.sources);
+
+                // Add to history state
+                conversationHistory.push({ role: 'user', content: query });
+                conversationHistory.push({ role: 'model', content: data.answer });
+
+                // Cap history
+                if (conversationHistory.length > 10) {
+                    conversationHistory = conversationHistory.slice(-10);
+                }
+
+            } catch (err) {
+                removeTypingIndicator();
+                addMessageElement('bot', `Maaf, terjadi kesalahan: ${err.message}`);
+            }
+        }
+
+        // Enter key to send
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        // File upload handling
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            if (noIngestText) {
+                noIngestText.style.display = 'none';
+            }
+
+            // Create file status item
+            const statusItem = document.createElement('div');
+            statusItem.className = 'status-item loading';
+            const randomId = 'file-' + Math.random().toString(36).substr(2, 9);
+            statusItem.id = randomId;
+
+            statusItem.innerHTML = `
+                <div class="status-item-icon"><i class="fa-solid fa-spinner"></i></div>
+                <div class="status-item-info">
+                    <div class="status-item-name">${file.name}</div>
+                    <div class="status-item-desc">Memproses berkas...</div>
+                </div>
+            `;
+            statusList.insertBefore(statusItem, statusList.firstChild);
+
+            // Upload via API
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/ingest', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Gagal memproses file.');
+                }
+
+                // Update status item to Success
+                statusItem.className = 'status-item success';
+                statusItem.innerHTML = `
+                    <div class="status-item-icon"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="status-item-info">
+                        <div class="status-item-name">${file.name}</div>
+                        <div class="status-item-desc">Sukses (${data.chunks} chunks)</div>
+                    </div>
+                `;
+
+            } catch (err) {
+                // Update status item to Error
+                statusItem.className = 'status-item error';
+                statusItem.innerHTML = `
+                    <div class="status-item-icon"><i class="fa-solid fa-circle-xmark"></i></div>
+                    <div class="status-item-info">
+                        <div class="status-item-name">${file.name}</div>
+                        <div class="status-item-desc">${err.message}</div>
+                    </div>
+                `;
+            }
+
+            // Reset file input value
+            fileInput.value = '';
+        });
+    </script>
+</body>
+</html>

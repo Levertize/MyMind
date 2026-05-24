@@ -1,0 +1,12 @@
+google-generativeai
+chromadb
+pymupdf
+python-dotenv
+langchain
+langchain-community
+ebooklib
+beautifulsoup4
+fastapi
+uvicorn
+python-multipart
+langchain-google-genai
