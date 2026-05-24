@@ -29,3 +29,48 @@ def add_documents(
     """
     db = get_vectorstore(collection_name)
     db.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+
+def delete_document(collection_name: str, filename: str) -> bool:
+    """
+    Menghapus dokumen dari ChromaDB berdasarkan nama file.
+    Mengembalikan True jika sukses menghapus, False jika tidak ada data yang cocok.
+    """
+    db = get_vectorstore(collection_name)
+    collection = db._collection
+    
+    # Dapatkan semua chunk yang memiliki source == filename
+    results = collection.get(where={"source": filename})
+    ids = results.get("ids", [])
+    
+    if ids:
+        collection.delete(ids=ids)
+        return True
+    return False
+
+def clear_vectorstore(collection_name: str) -> None:
+    """
+    Menghapus seluruh koleksi data di ChromaDB (clear database).
+    """
+    db = get_vectorstore(collection_name)
+    db.delete_collection()
+
+def list_documents(collection_name: str) -> List[str]:
+    """
+    Mengambil daftar nama file dokumen unik yang terindeks di ChromaDB.
+    """
+    db = get_vectorstore(collection_name)
+    collection = db._collection
+    
+    # Ambil semua metadata di koleksi
+    results = collection.get(include=["metadatas"])
+    metadatas = results.get("metadatas", [])
+    
+    # Ekstrak nama file unik
+    sources = set()
+    for meta in metadatas:
+        if meta and "source" in meta:
+            sources.add(meta["source"])
+            
+    return sorted(list(sources))
+
+

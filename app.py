@@ -12,7 +12,7 @@ import shutil
 from ingestion.loader import load_document
 from ingestion.chunker import split_text
 from embeddings.embedder import get_embeddings
-from storage.vectorstore import add_documents
+from storage.vectorstore import add_documents, delete_document, clear_vectorstore, list_documents
 from llm.orchestrator import run_rag_pipeline
 from config import DATA_DIR, GENERATION_MODEL
 
@@ -100,6 +100,55 @@ def ingest_endpoint(file: UploadFile = File(...)) -> Dict[str, Any]:
     except Exception as e:
         if os.path.exists(file_path):
             os.remove(file_path)
+        raise HTTPException(status_code=500, detail=str(e))
+
+class DeleteRequest(BaseModel):
+    filename: str
+
+@app.post("/api/documents/delete")
+def delete_document_endpoint(request: DeleteRequest) -> Dict[str, Any]:
+    """
+    Endpoint untuk menghapus dokumen tertentu berdasarkan nama file dari ChromaDB.
+    """
+    try:
+        deleted = delete_document("mymind_documents", request.filename)
+        if deleted:
+            file_path = os.path.join(DATA_DIR, request.filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return {"status": "success", "message": f"Dokumen {request.filename} berhasil dihapus."}
+        else:
+            raise HTTPException(status_code=404, detail=f"Dokumen {request.filename} tidak ditemukan.")
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/database/clear")
+def clear_database_endpoint() -> Dict[str, Any]:
+    """
+    Endpoint untuk mengosongkan seluruh database ChromaDB.
+    """
+    try:
+        clear_vectorstore("mymind_documents")
+        if os.path.exists(DATA_DIR):
+            for f in os.listdir(DATA_DIR):
+                file_path = os.path.join(DATA_DIR, f)
+                if os.path.isfile(file_path) and f != ".gitkeep":
+                    os.remove(file_path)
+        return {"status": "success", "message": "Database berhasil dikosongkan."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/documents")
+def get_documents_endpoint() -> Dict[str, Any]:
+    """
+    Endpoint untuk mendapatkan daftar seluruh dokumen yang tersimpan di ChromaDB.
+    """
+    try:
+        docs = list_documents("mymind_documents")
+        return {"documents": docs}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

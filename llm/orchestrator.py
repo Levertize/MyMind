@@ -44,16 +44,20 @@ def create_rag_chain() -> Runnable:
     ])
     return prompt | chat_model | StrOutputParser()
 
-# Inisialisasi chain orchestration
-rag_chain = create_rag_chain()
+# Inisialisasi chain orchestration dengan automatic retry (5 kali percobaan)
+rag_chain = create_rag_chain().with_retry(stop_after_attempt=5)
 
 def run_rag_pipeline(query: str, history: List[Dict[str, str]] = None) -> Dict[str, Any]:
     """
     Menjalankan pipeline RAG menggunakan chain orchestration LangChain.
     """
-    # 1. Retrieve konteks terdekat
-    context_chunks = retrieve_context(query)
-    context_text = format_context(context_chunks)
+    # 1. Retrieve konteks terdekat (dengan penanganan error gracefully)
+    try:
+        context_chunks = retrieve_context(query)
+        context_text = format_context(context_chunks)
+    except Exception:
+        context_chunks = []
+        context_text = "Dokumen konteks tidak dapat dimuat."
     
     # 2. Siapkan instruksi system dengan dokumen
     system_text = (
@@ -66,14 +70,21 @@ def run_rag_pipeline(query: str, history: List[Dict[str, str]] = None) -> Dict[s
     )
     system_messages = [SystemMessage(content=system_text)]
     
-    # 3. Jalankan chain
-    response_text = rag_chain.invoke({
-        "system_message": system_messages,
-        "chat_history": format_history(history),
-        "query": query
-    })
+    # 3. Jalankan chain dengan penanganan exception rate limit, timeout, dsb.
+    try:
+        response_text = rag_chain.invoke({
+            "system_message": system_messages,
+            "chat_history": format_history(history),
+            "query": query
+        })
+    except Exception as e:
+        response_text = (
+            "Maaf, saat ini layanan Gemini API sedang sibuk atau mengalami kendala teknis. "
+            f"Silakan coba beberapa saat lagi. (Detail: {str(e)})"
+        )
     
     return {
         "answer": response_text,
         "sources": context_chunks
     }
+

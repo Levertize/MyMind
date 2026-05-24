@@ -226,6 +226,51 @@
             color: #c084fc;
         }
 
+        .delete-file-btn {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .delete-file-btn:hover {
+            transform: scale(1.2);
+            color: #f87171;
+        }
+
+        #clear-db-btn {
+            width: 100%;
+            margin-top: 12px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #clear-db-btn:hover {
+            background: rgba(239, 68, 68, 0.35);
+            border-color: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+            transform: translateY(-1px);
+        }
+
+        #clear-db-btn:active {
+            transform: translateY(0);
+        }
+
         /* Main Chat Area */
         .chat-area {
             flex-grow: 1;
@@ -573,6 +618,9 @@
                 <span class="config-label">Model Embedding:</span>
                 <span class="config-val">gemini-embedding-001</span>
             </div>
+            <button id="clear-db-btn" title="Kosongkan database local">
+                <i class="fa-solid fa-triangle-exclamation"></i> Hapus Database
+            </button>
         </div>
     </div>
 
@@ -843,6 +891,9 @@
                         <div class="status-item-name">${file.name}</div>
                         <div class="status-item-desc">Sukses (${data.chunks} chunks)</div>
                     </div>
+                    <button class="delete-file-btn" onclick="deleteDocument('${file.name}', '${randomId}')" title="Hapus dokumen">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 `;
 
             } catch (err) {
@@ -860,6 +911,123 @@
             // Reset file input value
             fileInput.value = '';
         });
+
+        // Delete document API call
+        async function deleteDocument(filename, elementId) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus dokumen "${filename}" dari database?`)) {
+                return;
+            }
+            try {
+                const response = await fetch('/api/documents/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Gagal menghapus file.');
+                }
+                
+                // Remove item from UI
+                const item = document.getElementById(elementId);
+                if (item) {
+                    item.remove();
+                }
+                
+                // Show "Belum ada dokumen yang diunggah" if no files left
+                const statusItems = statusList.getElementsByClassName('status-item');
+                if (statusItems.length === 0 && noIngestText) {
+                    noIngestText.style.display = 'block';
+                }
+                
+                alert(`Sukses: ${data.message}`);
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        // Clear database API call
+        const clearDbBtn = document.getElementById('clear-db-btn');
+        if (clearDbBtn) {
+            clearDbBtn.addEventListener('click', async () => {
+                if (!confirm('Apakah Anda yakin ingin mengosongkan SELURUH database? Tindakan ini tidak dapat dibatalkan.')) {
+                    return;
+                }
+                try {
+                    const response = await fetch('/api/database/clear', {
+                        method: 'POST'
+                    });
+                    
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Gagal mengosongkan database.');
+                    }
+                    
+                    // Clear status list in UI
+                    const statusItems = Array.from(statusList.getElementsByClassName('status-item'));
+                    statusItems.forEach(item => item.remove());
+                    
+                    if (noIngestText) {
+                        noIngestText.style.display = 'block';
+                    }
+                    
+                    // Reset chat history and messages
+                    conversationHistory = [];
+                    const messages = messagesContainer.getElementsByClassName('message');
+                    Array.from(messages).forEach(msg => msg.remove());
+                    if (welcomeScreen) {
+                        welcomeScreen.style.display = 'flex';
+                    }
+                    
+                    alert(`Sukses: ${data.message}`);
+                } catch (err) {
+                    alert(`Error: ${err.message}`);
+                }
+            });
+        }
+
+        // Load initially ingested documents on page load
+        async function loadIngestedDocuments() {
+            try {
+                const response = await fetch('/api/documents');
+                if (!response.ok) {
+                    throw new Error('Gagal mengambil daftar dokumen.');
+                }
+                const data = await response.json();
+                const documents = data.documents || [];
+                
+                if (documents.length > 0 && noIngestText) {
+                    noIngestText.style.display = 'none';
+                }
+                
+                documents.forEach(filename => {
+                    const statusItem = document.createElement('div');
+                    statusItem.className = 'status-item success';
+                    const randomId = 'file-' + Math.random().toString(36).substr(2, 9);
+                    statusItem.id = randomId;
+                    
+                    statusItem.innerHTML = `
+                        <div class="status-item-icon"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="status-item-info">
+                            <div class="status-item-name">${filename}</div>
+                            <div class="status-item-desc">Tersimpan di ChromaDB</div>
+                        </div>
+                        <button class="delete-file-btn" onclick="deleteDocument('${filename}', '${randomId}')" title="Hapus dokumen">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    `;
+                    statusList.appendChild(statusItem);
+                });
+            } catch (err) {
+                console.error("Gagal memuat daftar dokumen dari database:", err);
+            }
+        }
+
+        // Trigger on load
+        window.addEventListener('DOMContentLoaded', loadIngestedDocuments);
     </script>
 </body>
 </html>

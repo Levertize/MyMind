@@ -9,7 +9,7 @@ from typing import List, Dict, Any
 from ingestion.loader import load_document
 from ingestion.chunker import split_text
 from embeddings.embedder import get_embeddings
-from storage.vectorstore import add_documents
+from storage.vectorstore import add_documents, delete_document, clear_vectorstore
 from llm.orchestrator import run_rag_pipeline
 from config import DATA_DIR, GENERATION_MODEL
 
@@ -129,6 +129,31 @@ def run_chat() -> None:
         except Exception as e:
             print(f"\n[-] Gagal memproses obrolan: {str(e)}\n")
 
+def run_delete(filename: str) -> None:
+    """
+    Menghapus dokumen dari database local berdasarkan nama file.
+    """
+    print(f"[*] Mencoba menghapus dokumen '{filename}' dari database...")
+    try:
+        deleted = delete_document("mymind_documents", filename)
+        if deleted:
+            print(f"[+] Dokumen '{filename}' berhasil dihapus.")
+        else:
+            print(f"[-] Dokumen '{filename}' tidak ditemukan di database.")
+    except Exception as e:
+        print(f"[-] Gagal menghapus dokumen: {str(e)}")
+
+def run_clear() -> None:
+    """
+    Membersihkan semua data dokumen di database local.
+    """
+    print("[*] Mencoba mengosongkan seluruh database...")
+    try:
+        clear_vectorstore("mymind_documents")
+        print("[+] Seluruh database local berhasil dikosongkan.")
+    except Exception as e:
+        print(f"[-] Gagal mengosongkan database: {str(e)}")
+
 def main() -> None:
     """
     Main entry point untuk CLI parser.
@@ -150,6 +175,13 @@ def main() -> None:
     # Subparser untuk Chat
     subparsers.add_parser("chat", help="Mulai sesi obrolan interaktif dengan memori")
     
+    # Subparser untuk Delete
+    delete_parser = subparsers.add_parser("delete", help="Hapus dokumen dari database")
+    delete_parser.add_argument("filename", type=str, help="Nama file dokumen yang ingin dihapus")
+    
+    # Subparser untuk Clear
+    subparsers.add_parser("clear", help="Kosongkan seluruh isi database")
+    
     args = parser.parse_args()
     
     if args.command == "ingest":
@@ -158,6 +190,10 @@ def main() -> None:
         run_query(args.prompt)
     elif args.command == "chat":
         run_chat()
+    elif args.command == "delete":
+        run_delete(args.filename)
+    elif args.command == "clear":
+        run_clear()
     else:
         parser.print_help()
 
