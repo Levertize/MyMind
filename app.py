@@ -13,8 +13,7 @@ from ingestion.loader import load_document
 from ingestion.chunker import split_text
 from embeddings.embedder import get_embeddings
 from storage.vectorstore import add_documents
-from retrieval.retriever import retrieve_context
-from llm.generator import generate_answer
+from llm.orchestrator import run_rag_pipeline
 from config import DATA_DIR, GENERATION_MODEL
 
 app = FastAPI(title="MyMind Personal RAG Chatbot")
@@ -41,13 +40,12 @@ def chat_endpoint(request: ChatRequest) -> Dict[str, Any]:
     Endpoint untuk menerima pesan dan mengembalikan jawaban RAG serta referensi dokumen.
     """
     try:
-        # 1. Ambil dokumen relevan
-        context_chunks = retrieve_context(request.query)
+        # Jalankan pipeline RAG menggunakan orchestrator LangChain
+        result = run_rag_pipeline(request.query, request.history)
+        answer = result["answer"]
+        context_chunks = result["sources"]
         
-        # 2. Hasilkan jawaban berdasarkan konteks dan riwayat obrolan
-        answer = generate_answer(request.query, context_chunks, request.history)
-        
-        # 3. Format referensi dokumen
+        # Format referensi dokumen
         sources = []
         for chunk in context_chunks:
             sources.append({

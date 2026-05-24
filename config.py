@@ -18,6 +18,7 @@ CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "500"))
 CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "50"))
 
 # Konfigurasi Model Gemini
-EMBEDDING_MODEL: str = "models/gemini-embedding-001"
-GENERATION_MODEL: str = "gemini-3.5-flash"
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
+GENERATION_MODEL: str = os.getenv("GENERATION_MODEL", "gemini-3.5-flash")
 MAX_CONTEXT_CHUNKS: int = 5
+

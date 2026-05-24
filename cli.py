@@ -10,8 +10,7 @@ from ingestion.loader import load_document
 from ingestion.chunker import split_text
 from embeddings.embedder import get_embeddings
 from storage.vectorstore import add_documents
-from retrieval.retriever import retrieve_context
-from llm.generator import generate_answer
+from llm.orchestrator import run_rag_pipeline
 from config import DATA_DIR, GENERATION_MODEL
 
 def run_ingest(file_path: str) -> None:
@@ -64,44 +63,36 @@ def run_ingest(file_path: str) -> None:
 
 def run_query(query: str) -> None:
     """
-    Melakukan proses retrieval & QA: Retrieve -> Generate.
+    Melakukan proses QA dengan retrieval menggunakan LangChain Orchestration.
     """
     print(f"[*] Query: '{query}'")
-    
-    # 1. Retrieve context chunks
-    print("[*] Melakukan pencarian semantic di ChromaDB...")
+    print(f"[*] Menghasilkan jawaban menggunakan RAG pipeline LangChain ({GENERATION_MODEL})...")
     try:
-        context_chunks = retrieve_context(query)
-        print(f"[+] Menemukan {len(context_chunks)} chunk relevan.")
+        result = run_rag_pipeline(query)
+        answer = result["answer"]
+        context_chunks = result["sources"]
     except Exception as e:
-        print(f"[-] Gagal melakukan pencarian: {str(e)}")
+        print(f"[-] Gagal memproses query: {str(e)}")
         return
 
-    if not context_chunks:
-        print("[-] Tidak ditemukan dokumen yang relevan. Silakan ingest file terlebih dahulu.")
-        return
+    if context_chunks:
+        # Tampilkan sumber referensi yang ditemukan
+        print("\n--- Referensi Dokumen Terdekat ---")
+        for i, chunk in enumerate(context_chunks):
+            source = chunk.get("metadata", {}).get("source", "Unknown")
+            distance = chunk.get("distance", 0.0)
+            print(f"[{i+1}] {source} (Score distance: {distance:.4f})")
+        print("---------------------------------\n")
+    else:
+        print("[-] Tidak ditemukan dokumen referensi terdekat di database.")
 
-    # Tampilkan sumber referensi yang ditemukan
-    print("\n--- Referensi Dokumen Terdekat ---")
-    for i, chunk in enumerate(context_chunks):
-        source = chunk.get("metadata", {}).get("source", "Unknown")
-        distance = chunk.get("distance", 0.0)
-        print(f"[{i+1}] {source} (Score distance: {distance:.4f})")
-    print("---------------------------------\n")
-
-    # 2. Generate answer
-    print(f"[*] Menghasilkan jawaban menggunakan Gemini ({GENERATION_MODEL})...")
-    try:
-        answer = generate_answer(query, context_chunks)
-        print("\n=== JAWABAN MYMIND ===")
-        print(answer)
-        print("======================\n")
-    except Exception as e:
-        print(f"[-] Gagal menghasilkan jawaban: {str(e)}")
+    print("\n=== JAWABAN MYMIND ===")
+    print(answer)
+    print("======================\n")
 
 def run_chat() -> None:
     """
-    Menjalankan sesi interactive chat CLI yang mempertahankan riwayat obrolan.
+    Menjalankan sesi interactive chat CLI menggunakan LangChain Orchestration.
     """
     print("====================================================")
     print("      Selamat datang di Sesi Chat Interaktif MyMind")
@@ -125,14 +116,10 @@ def run_chat() -> None:
             break
             
         try:
-            context_chunks = retrieve_context(query)
-        except Exception as e:
-            print(f"[-] Gagal melakukan pencarian dokumen: {str(e)}")
-            context_chunks = []
-            
-        try:
-            answer = generate_answer(query, context_chunks, history)
+            result = run_rag_pipeline(query, history)
+            answer = result["answer"]
             print(f"\nMyMind > {answer}\n")
+            
             history.append({"role": "user", "content": query})
             history.append({"role": "model", "content": answer})
             
@@ -140,7 +127,7 @@ def run_chat() -> None:
             if len(history) > 10:
                 history = history[-10:]
         except Exception as e:
-            print(f"\n[-] Gagal menghasilkan jawaban: {str(e)}\n")
+            print(f"\n[-] Gagal memproses obrolan: {str(e)}\n")
 
 def main() -> None:
     """

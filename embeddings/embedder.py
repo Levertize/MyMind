@@ -3,11 +3,11 @@ Module to generate text embeddings using LangChain GoogleGenAIEmbeddings.
 """
 
 from typing import List
-from langchain_google_genai import GoogleGenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from config import GEMINI_API_KEY, EMBEDDING_MODEL
 
 # Inisialisasi embeddings model LangChain
-embeddings_model = GoogleGenAIEmbeddings(
+embeddings_model = GoogleGenerativeAIEmbeddings(
     model=EMBEDDING_MODEL,
     google_api_key=GEMINI_API_KEY
 )
