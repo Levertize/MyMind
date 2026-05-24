@@ -1,20 +1,21 @@
 """
-Module to manage ChromaDB local vector database storage.
+Module to manage Chroma vector database storage using LangChain.
 """
 
 from typing import List, Dict, Any
-import chromadb
-from chromadb.config import Settings
+from langchain_community.vectorstores import Chroma
+from embeddings.embedder import embeddings_model
 from config import CHROMA_DB_PATH
 
-# Inisialisasi ChromaDB client persistent
-client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-
-def get_or_create_collection(name: str = "mymind_documents"):
+def get_vectorstore(collection_name: str = "mymind_documents") -> Chroma:
     """
-    Mengambil atau membuat ChromaDB collection baru.
+    Mengambil instance Chroma vectorstore LangChain.
     """
-    return client.get_or_create_collection(name=name)
+    return Chroma(
+        collection_name=collection_name,
+        persist_directory=CHROMA_DB_PATH,
+        embedding_function=embeddings_model
+    )
 
 def add_documents(
     collection_name: str, 
@@ -24,26 +25,7 @@ def add_documents(
     ids: List[str]
 ) -> None:
     """
-    Menambahkan dokumen, embedding, dan metadata ke dalam ChromaDB.
+    Menambahkan dokumen ke ChromaDB menggunakan LangChain.
     """
-    collection = get_or_create_collection(collection_name)
-    collection.add(
-        documents=texts,
-        embeddings=embeddings,
-        metadatas=metadatas,
-        ids=ids
-    )
-
-def query_documents(
-    collection_name: str, 
-    query_embeddings: List[List[float]], 
-    n_results: int = 5
-) -> Dict[str, Any]:
-    """
-    Mencari dokumen terdekat berdasarkan vektor query embedding.
-    """
-    collection = get_or_create_collection(collection_name)
-    return collection.query(
-        query_embeddings=query_embeddings,
-        n_results=n_results
-    )
+    db = get_vectorstore(collection_name)
+    db.add_texts(texts=texts, metadatas=metadatas, ids=ids)

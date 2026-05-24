@@ -1,14 +1,18 @@
 """
-Module to generate answers using Gemini LLM API based on retrieved context.
+Module to generate answers using LangChain ChatGoogleGenerativeAI based on retrieved context.
 """
 
 from typing import List, Dict, Any
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from config import GEMINI_API_KEY, GENERATION_MODEL
 
-# Konfigurasi Gemini API
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# Inisialisasi model LLM Chat Google Generative AI
+chat_model = ChatGoogleGenerativeAI(
+    model=GENERATION_MODEL,
+    google_api_key=GEMINI_API_KEY,
+    temperature=0.2
+)
 
 def generate_answer(
     query: str, 
@@ -16,11 +20,8 @@ def generate_answer(
     history: List[Dict[str, str]] = None
 ) -> str:
     """
-    Menghasilkan jawaban menggunakan Gemini model berdasarkan query, konteks, dan riwayat percakapan.
+    Menghasilkan jawaban menggunakan ChatGoogleGenerativeAI berdasarkan query, konteks, dan riwayat percakapan.
     """
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY belum dikonfigurasi di file .env")
-
     # 1. Bangun prompt dengan menyertakan konteks
     context_text: str = ""
     for idx, chunk in enumerate(context_chunks):
@@ -36,30 +37,22 @@ def generate_answer(
         f"{context_text}"
     )
 
+    messages = [SystemMessage(content=system_prompt)]
+
+    # 2. Bangun riwayat percakapan menggunakan struktur Message LangChain
+    if history:
+        for turn in history:
+            if turn["role"] == "user":
+                messages.append(HumanMessage(content=turn["content"]))
+            else:
+                messages.append(AIMessage(content=turn["content"]))
+
+    # Tambahkan query saat ini
+    messages.append(HumanMessage(content=query))
+
     try:
-        # 2. Inisialisasi model
-        model = genai.GenerativeModel(
-            model_name=GENERATION_MODEL,
-            system_instruction=system_prompt
-        )
-        
-        # 3. Bangun parameter isi (contents) yang menyertakan riwayat percakapan
-        contents = []
-        if history:
-            for turn in history:
-                contents.append({
-                    "role": "user" if turn["role"] == "user" else "model",
-                    "parts": [turn["content"]]
-                })
-        
-        # Tambahkan query saat ini
-        contents.append({
-            "role": "user",
-            "parts": [query]
-        })
-        
-        response = model.generate_content(contents)
-        return response.text
+        # 3. Kirim ke model Gemini melalui LangChain
+        response = chat_model.invoke(messages)
+        return str(response.content)
     except Exception as e:
-        # Menangani exception rate limit, timeout, dll dari API call
-        raise RuntimeError(f"Gagal generate jawaban dari Gemini API: {str(e)}")
+        raise RuntimeError(f"Gagal generate jawaban dari LangChain ChatGoogleGenAI: {str(e)}")

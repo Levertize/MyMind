@@ -1,46 +1,31 @@
 """
-Module to generate text embeddings using Gemini Embedding API.
+Module to generate text embeddings using LangChain GoogleGenAIEmbeddings.
 """
 
 from typing import List
-import google.generativeai as genai
+from langchain_google_genai import GoogleGenAIEmbeddings
 from config import GEMINI_API_KEY, EMBEDDING_MODEL
 
-# Konfigurasi Gemini API
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# Inisialisasi embeddings model LangChain
+embeddings_model = GoogleGenAIEmbeddings(
+    model=EMBEDDING_MODEL,
+    google_api_key=GEMINI_API_KEY
+)
 
 def get_embedding(text: str) -> List[float]:
     """
-    Mendapatkan representasi embedding (vektor) dari satu teks.
+    Mendapatkan representasi embedding (vektor) dari satu teks menggunakan LangChain.
     """
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY belum dikonfigurasi di file .env")
-        
     try:
-        response = genai.embed_content(
-            model=EMBEDDING_MODEL,
-            content=text,
-            task_type="retrieval_document"
-        )
-        return response["embedding"]
+        return embeddings_model.embed_query(text)
     except Exception as e:
-        # Menangani error API (rate limit, timeout, dll)
-        raise RuntimeError(f"Gagal mendapatkan embedding dari Gemini API: {str(e)}")
+        raise RuntimeError(f"Gagal mendapatkan embedding dari LangChain: {str(e)}")
 
 def get_embeddings(texts: List[str]) -> List[List[float]]:
     """
-    Mendapatkan representasi embedding (vektor) untuk beberapa teks sekaligus.
+    Mendapatkan representasi embedding (vektor) untuk beberapa teks sekaligus menggunakan LangChain.
     """
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY belum dikonfigurasi di file .env")
-        
     try:
-        response = genai.embed_content(
-            model=EMBEDDING_MODEL,
-            content=texts,
-            task_type="retrieval_document"
-        )
-        return response["embedding"]
+        return embeddings_model.embed_documents(texts)
     except Exception as e:
-        raise RuntimeError(f"Gagal mendapatkan embeddings dari Gemini API: {str(e)}")
+        raise RuntimeError(f"Gagal mendapatkan embeddings dari LangChain: {str(e)}")
