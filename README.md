@@ -1,5 +1,6 @@
 # MyMind - Personal RAG Chatbot
 
+
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://python.org)
 [![Orchestration](https://img.shields.io/badge/orchestration-LangChain-green.svg)](https://python.langchain.com)
 [![AI Model](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev)
